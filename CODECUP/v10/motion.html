@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>V10 · 像素板书 · 动态</title>
+<style>
+:root{
+  --paper:#F7F3E7;
+  --paper2:#FFFDF6;
+  --ink:#17161A;
+  --orange:#E4532E;
+  --teal:#2E8BA6;
+  --yellow:#F0C242;
+  --blue:#3D6FD0;
+  --sans:Inter,"Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;
+  --mono:"Press Start 2P","JetBrains Mono","Cascadia Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--paper);color:var(--ink);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle,rgba(23,22,26,.13) 1px,transparent 1px);
+  background-size:22px 22px;
+}
+
+.stage{position:fixed;inset:0;display:grid;place-items:center}
+.sc{
+  position:absolute;width:100%;max-width:1080px;padding:0 6vw 70px;
+  opacity:0;visibility:hidden;transition:opacity .35s ease;
+}
+.sc.on{opacity:1;visibility:visible}
+
+/* 入场：从下方弹起 */
+.pop{
+  opacity:0;transform:translateY(22px) scale(.9);
+  transition:opacity .3s ease,transform .5s cubic-bezier(.34,1.56,.64,1);
+  transition-delay:var(--d,0ms);
+}
+.pop.in{opacity:1;transform:none}
+/* 盖章：从上方压下 */
+.stamp{
+  opacity:0;transform:translateY(-24px) scale(1.15) rotate(var(--r,0deg));
+  transition:opacity .25s ease,transform .45s cubic-bezier(.34,1.56,.64,1);
+  transition-delay:var(--d,0ms);
+}
+.stamp.in{opacity:1;transform:rotate(var(--r,0deg));}
+
+/* 标签牌 */
+.badge{
+  display:inline-block;background:var(--paper2);
+  border:3px solid var(--ink);border-radius:12px;
+  padding:7px 16px;font-weight:800;font-size:15px;letter-spacing:.02em;
+  box-shadow:4px 4px 0 rgba(23,22,26,.14);
+}
+.badge.o{background:var(--orange);color:#fff;border-color:var(--ink)}
+.badge.t{background:var(--teal);color:#fff;border-color:var(--ink)}
+.badge.y{background:var(--yellow);border-color:var(--ink)}
+
+h1{
+  font-size:clamp(40px,5.6vw,76px);font-weight:900;
+  line-height:1.12;letter-spacing:-.02em;
+}
+.ul{
+  background:linear-gradient(transparent 62%,var(--yellow) 62%,var(--yellow) 92%,transparent 92%);
+  padding:0 .06em;
+}
+.lede{font-size:17px;color:#4A4640;max-width:44ch;margin-top:22px;line-height:1.8;font-weight:500}
+
+/* 像素图 */
+.sprite{display:grid;image-rendering:pixelated;margin-top:6px}
+.sprite i{display:block}
+
+/* 盒子 */
+.boxes{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:8px}
+.box{
+  background:var(--paper2);border:3px solid var(--ink);border-radius:14px;
+  padding:20px;box-shadow:5px 5px 0 rgba(23,22,26,.13);
+}
+.box .n{
+  font-family:var(--mono);font-size:44px;font-weight:900;letter-spacing:-.04em;
+  line-height:1;margin-bottom:14px;
+}
+.box .n.o{color:var(--orange)}
+.box .n.t{color:var(--teal)}
+.box .lbl{font-size:13.5px;font-weight:700;color:#4A4640}
+
+/* 像素块阵列 */
+.blocks{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;margin-top:26px;max-width:430px}
+.blk{
+  aspect-ratio:1;background:#DCD6C4;border:2px solid #C7C0AC;border-radius:3px;
+  transform:scale(.4);opacity:0;
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .25s,
+             background .3s,border-color .3s;
+}
+.blk.in{transform:scale(1);opacity:1}
+.blk.hot{background:var(--yellow);border-color:var(--ink)}
+.blk.acc{background:var(--teal);border-color:var(--ink)}
+
+/* 流程 */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;position:relative}
+.step{
+  background:var(--paper2);border:3px solid var(--ink);border-radius:14px;
+  padding:18px 16px;box-shadow:5px 5px 0 rgba(23,22,26,.13);
+  position:relative;z-index:1;
+}
+.step b{
+  display:block;font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  color:var(--orange);margin-bottom:9px;font-weight:700;
+}
+.step p{font-size:16px;font-weight:800;letter-spacing:-.01em}
+
+/* 手绘箭头（SVG 描边动画） */
+.dash{
+  position:absolute;left:0;top:50%;width:100%;height:60px;
+  transform:translateY(-50%);pointer-events:none;overflow:visible;z-index:0;
+}
+.dash path{
+  fill:none;stroke:var(--orange);stroke-width:3;stroke-dasharray:7 7;stroke-linecap:round;
+  opacity:0;transition:opacity .4s ease;transition-delay:var(--d,0ms);
+}
+.dash.off path{opacity:1}
+
+/* 字幕条 */
+.sub{
+  position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(14px);
+  background:var(--ink);color:#fff;padding:11px 26px;border-radius:10px;
+  font-size:15px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
+  opacity:0;transition:opacity .35s ease,transform .35s cubic-bezier(.2,.8,.2,1);z-index:9;
+}
+.sub.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.hud{
+  position:fixed;bottom:34px;right:34px;z-index:9;
+  display:flex;gap:8px;align-items:center;
+  font-family:var(--mono);font-size:10px;color:#8B867A;letter-spacing:.1em;
+}
+.hud i{width:7px;height:7px;border-radius:2px;background:#C7C0AC;transition:.25s}
+.hud i.on{background:var(--orange);width:18px;border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <section class="sc" id="s1">
+    <div class="badge t stamp" style="--d:0ms;--r:-2deg">MOTION DEMO</div>
+    <h1 style="margin-top:22px">
+      <span class="pop" style="--d:120ms;display:block">标题占位文字</span>
+      <span class="pop" style="--d:280ms;display:block"><span class="ul">高亮关键句</span></span>
+    </h1>
+    <p class="lede pop" style="--d:620ms">像在一块会动的白板上做板书：元素一个个被贴上去，虚线慢慢画出来，字幕从下方推入。</p>
+    <div id="mascot" style="margin-top:26px" class="pop"></div>
+  </section>
+
+  <section class="sc" id="s2">
+    <div class="boxes">
+      <div class="box stamp" style="--d:0ms"><div class="n o" id="n1">0</div><div class="lbl">参赛项目</div></div>
+      <div class="box stamp" style="--d:110ms"><div class="n t" id="n2">0</div><div class="lbl">小时完成</div></div>
+      <div class="box stamp" style="--d:220ms"><div class="n" id="n3">0</div><div class="lbl">百分比</div></div>
+    </div>
+    <div class="blocks" id="blocks"></div>
+  </section>
+
+  <section class="sc" id="s3">
+    <svg class="dash" viewBox="0 0 1000 30" preserveAspectRatio="none" id="dash">
+      <path d="M20 15 C 100 8, 150 8, 230 15 S 320 22, 400 15 S 500 8, 580 15 S 690 22, 770 15 S 900 9, 980 15"/>
+    </svg>
+    <div class="flow">
+      <div class="step pop" style="--d:0ms"><b>STEP 01</b><p>沙箱隔离</p></div>
+      <div class="step pop" style="--d:120ms"><b>STEP 02</b><p>规则注入</p></div>
+      <div class="step pop" style="--d:240ms"><b>STEP 03</b><p>并行调度</p></div>
+      <div class="step pop" style="--d:360ms"><b>STEP 04</b><p>结果公开</p></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="sub" id="sub">这是一句字幕占位</div>
+<div class="hud"><span id="hudnum">1 / 3</span><i class="on"></i><i></i><i></i></div>
+
+<script>
+/* ---------- 像素小图 ---------- */
+const SPRITE = [
+  '................',
+  '.....kkkkkk.....',
+  '....kkkkkkkk....',
+  '....kwwwwwwk....',
+  '....kwewwewk....',
+  '....kwwwwwwk....',
+  '....kwwmmwwk....',
+  '.....wwwwww.....',
+  '...kkkkkkkkkk...',
+  '...koooooookk...',
+  '...kowwwwwokk...',
+  '....kkkkkkkk....',
+  '....kk....kk....',
+  '....kk....kk....'
+];
+const PAL = { k:'#17161A', w:'#FFFDF6', e:'#17161A', m:'#E4532E', o:'#E4532E' };
+
+function makeSprite(cell){
+  const el = document.createElement('div');
+  el.className = 'sprite';
+  el.style.gridTemplateColumns = `repeat(${SPRITE[0].length}, ${cell}px)`;
+  el.style.gridAutoRows = `${cell}px`;
+  for (const row of SPRITE){
+    for (const ch of row){
+      const i = document.createElement('i');
+      if (ch !== '.') i.style.background = PAL[ch] || 'transparent';
+      el.appendChild(i);
+    }
+  }
+  return el;
+}
+document.getElementById('mascot').appendChild(makeSprite(9));
+
+/* ---------- 块阵列 ---------- */
+const blocks = document.getElementById('blocks');
+for (let i = 0; i < 48; i++){
+  const d = document.createElement('div');
+  d.className = 'blk';
+  blocks.appendChild(d);
+}
+const blks = [...blocks.children];
+
+/* ---------- 场景 ---------- */
+const scenes = [...document.querySelectorAll('.sc')];
+const dots = [...document.querySelectorAll('.hud i')];
+const sub = document.getElementById('sub');
+const CAPS = ['一块会动的白板', '数字和方块一个个被贴上去', '虚线画出来，节点依次落位'];
+const dash = document.getElementById('dash');
+
+let idx = 0;
+
+function countTo(el, target, ms = 1000){
+  const t0 = performance.now();
+  (function tick(t){
+    const p = Math.min(1, (t - t0) / ms);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(tick);
+  })(t0);
+}
+
+function play(i){
+  scenes.forEach((s, k) => s.classList.toggle('on', k === i));
+  dots.forEach((d, k) => d.classList.toggle('on', k === i));
+  const sc = scenes[i];
+
+  sc.querySelectorAll('.pop,.stamp').forEach(n => n.classList.remove('in'));
+  if (i === 1) blks.forEach(b => b.classList.remove('in', 'hot', 'acc'));
+  dash.classList.remove('off');
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    sc.querySelectorAll('.pop,.stamp').forEach(n => n.classList.add('in'));
+  }));
+
+  if (i === 1){
+    setTimeout(() => {
+      countTo(document.getElementById('n1'), 76);
+      countTo(document.getElementById('n2'), 6);
+      countTo(document.getElementById('n3'), 100);
+    }, 380);
+    blks.forEach((b, k) => setTimeout(() => {
+      b.classList.add('in');
+      if (k % 4 === 0) b.classList.add('hot');
+      else if (k % 7 === 0) b.classList.add('acc');
+    }, 460 + k * 16));
+  }
+
+  if (i === 2){
+    setTimeout(() => dash.classList.add('off'), 420);
+  }
+
+  sub.textContent = CAPS[i];
+  document.getElementById('hudnum').textContent = (i + 1) + ' / 3';
+}
+
+function go(n){ idx = (n + 3) % 3; play(idx); }
+
+document.addEventListener('keydown', e => {
+  if ([' ','ArrowRight','ArrowDown','Enter'].includes(e.key)){ e.preventDefault(); go(idx + 1); }
+  if (['ArrowLeft','ArrowUp'].includes(e.key)){ e.preventDefault(); go(idx - 1); }
+});
+document.addEventListener('click', e => { go(e.clientX > innerWidth / 2 ? idx + 1 : idx - 1); });
+
+play(0);
+setTimeout(() => sub.classList.add('on'), 200);
+</script>
+</body>
+</html>

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CODECUP · AI Evaluation</title>
+<style>
+:root{
+  --paper:#F7F3E7;
+  --paper2:#FFFDF6;
+  --ink:#17161A;
+  --ink2:#4A4640;
+  --orange:#E4532E;
+  --teal:#2E8BA6;
+  --yellow:#F0C242;
+  --blue:#3D6FD0;
+  --blk:#DCD6C4;
+  --blkline:#C7C0AC;
+  --sans:Inter,"Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","Cascadia Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--paper);color:var(--ink);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle,rgba(23,22,26,.13) 1px,transparent 1px);
+  background-size:22px 22px;
+}
+
+/* ---------- 顶栏 ---------- */
+.top{
+  position:fixed;top:0;left:0;right:0;z-index:20;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:22px 34px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.12em;color:#8B867A;
+}
+.top .sec{font-weight:700;color:var(--ink)}
+.prog{position:fixed;left:0;right:0;bottom:0;height:4px;background:#DCD6C4;z-index:20}
+.prog i{display:block;height:100%;width:0;background:var(--orange);transition:width .4s cubic-bezier(.4,0,.2,1)}
+
+/* ---------- 舞台 ---------- */
+.stage{position:fixed;inset:0;display:grid;place-items:center}
+.sc{
+  position:absolute;left:50%;top:50%;
+  width:100%;max-width:1180px;padding:0 5vw 76px;
+  opacity:0;transform:translate(-50%,-50%) translateY(10px);
+  transition:opacity .3s ease,transform .3s ease;
+  pointer-events:none;
+}
+.sc.on{opacity:1;transform:translate(-50%,-50%)}
+
+.pop{
+  opacity:0;transform:translateY(18px) scale(.94);
+  transition:opacity .28s ease,transform .45s cubic-bezier(.34,1.56,.64,1);
+  transition-delay:var(--d,0ms);
+}
+.pop.in{opacity:1;transform:none}
+.stamp{
+  opacity:0;transform:translateY(-20px) scale(1.12) rotate(var(--r,0deg));
+  transition:opacity .22s ease,transform .4s cubic-bezier(.34,1.56,.64,1);
+  transition-delay:var(--d,0ms);
+}
+.stamp.in{opacity:1;transform:rotate(var(--r,0deg))}
+
+/* ---------- 通用件 ---------- */
+.badge{
+  display:inline-block;background:var(--paper2);border:3px solid var(--ink);
+  border-radius:11px;padding:7px 15px;font-weight:800;font-size:15px;
+  letter-spacing:.01em;box-shadow:4px 4px 0 rgba(23,22,26,.13);
+}
+.badge.o{background:var(--orange);color:#fff}
+.badge.t{background:var(--teal);color:#fff}
+.badge.y{background:var(--yellow)}
+.badge.sm{font-size:12.5px;padding:5px 11px;border-width:2px;box-shadow:3px 3px 0 rgba(23,22,26,.13)}
+
+h1{font-size:clamp(36px,4.9vw,66px);font-weight:900;line-height:1.14;letter-spacing:-.02em}
+h2{font-size:clamp(22px,2.5vw,32px);font-weight:900;line-height:1.2;letter-spacing:-.015em}
+.ul{background:linear-gradient(transparent 60%,var(--yellow) 60%,var(--yellow) 92%,transparent 92%);padding:0 .05em}
+.lede{font-size:16px;color:var(--ink2);max-width:46ch;line-height:1.8;font-weight:500;margin-top:20px}
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--ink2);font-weight:700}
+
+/* ---------- S1 ---------- */
+.mascot{display:inline-block;vertical-align:bottom}
+.metrics{display:flex;gap:18px;margin-top:26px}
+.metric{
+  background:var(--paper2);border:3px solid var(--ink);border-radius:13px;
+  padding:16px 22px;box-shadow:5px 5px 0 rgba(23,22,26,.13);
+}
+.metric b{display:block;font-family:var(--mono);font-size:29px;font-weight:900;letter-spacing:-.03em;line-height:1;white-space:nowrap}
+.metric b.o{color:var(--orange)}
+.metric b.t{color:var(--teal)}
+.metric span{display:block;font-size:12.5px;font-weight:700;color:var(--ink2);margin-top:8px}
+.metric b .ar{font-size:.55em;color:var(--ink2);margin:0 .2em;vertical-align:.15em}
+.agenda{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
+
+/* ---------- S2 流水线 ---------- */
+.pipe{display:grid;grid-template-columns:480px 400px;justify-content:center;gap:74px;align-items:start;margin-top:14px}
+.field-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.field{display:grid;grid-template-columns:repeat(10,1fr);gap:7px;max-width:100%}
+.blk{
+  aspect-ratio:1;background:var(--blk);border:2px solid var(--blkline);border-radius:3px;
+  transform:scale(.35);opacity:0;
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s,
+             background .3s,border-color .3s;
+  position:relative;
+}
+.blk.in{transform:scale(1);opacity:1}
+.blk.lock{border-color:var(--ink);border-width:2px}
+.blk.hot{background:var(--yellow);border-color:var(--ink)}
+.blk.done{background:var(--teal);border-color:var(--ink)}
+
+.pcol{position:relative;min-height:420px}
+.pcol .panel{position:absolute;top:0;left:0;right:0}
+.panel{
+  background:var(--paper2);border:3px solid var(--ink);border-radius:14px;
+  padding:20px;box-shadow:5px 5px 0 rgba(23,22,26,.13);
+  opacity:0;transform:translateX(16px);transition:.4s cubic-bezier(.2,.8,.2,1);
+  pointer-events:none;
+}
+.panel.on{opacity:1;transform:none}
+.panel .ph{
+  display:flex;justify-content:space-between;align-items:center;
+  padding-bottom:12px;border-bottom:2px dashed var(--blkline);margin-bottom:12px;
+}
+.panel .ph b{font-family:var(--mono);font-size:13px;font-weight:700}
+.tree{list-style:none;font-family:var(--mono);font-size:12.5px;line-height:2}
+.tree li{color:#A8A294}
+.tree li.dir{color:var(--ink2);font-weight:700}
+.tree li.read{color:var(--teal);font-weight:700}
+.tree li.read::before{content:"✓ ";font-size:11px}
+.tree li.skip::before{content:"· ";color:#C7C0AC}
+.pf{
+  display:flex;gap:14px;margin-top:12px;padding-top:12px;
+  border-top:2px dashed var(--blkline);
+  font-family:var(--mono);font-size:10.5px;color:var(--ink2);
+}
+.rank{list-style:none}
+.rank li{
+  display:grid;grid-template-columns:26px 1fr 46px;gap:10px;align-items:center;
+  padding:7px 0;border-bottom:2px dashed var(--blkline);
+  font-family:var(--mono);font-size:12.5px;
+}
+.rank li:last-child{border-bottom:0}
+.rank .r{color:#A8A294;font-weight:700}
+.rank .t{font-weight:700}
+.rank .s{text-align:right;font-weight:900;color:var(--orange)}
+.rank li:first-child .s{color:var(--teal)}
+
+/* ---------- S3 挑战 ---------- */
+.chs{display:flex;flex-direction:column;gap:14px;margin-top:22px}
+.ch{
+  display:grid;grid-template-columns:210px 1fr;gap:26px;align-items:start;
+  background:var(--paper2);border:3px solid var(--ink);border-radius:14px;
+  padding:18px 22px;box-shadow:5px 5px 0 rgba(23,22,26,.11);
+}
+.ch-h{display:flex;gap:12px;align-items:baseline}
+.ch-h .n{
+  font-family:var(--mono);font-size:13px;font-weight:900;color:var(--orange);
+}
+.ch-h h3{font-size:19px;font-weight:900;letter-spacing:-.01em;line-height:1.3}
+.ch-b{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.ch-b .k{
+  display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  color:#A8A294;margin-bottom:5px;font-weight:700;
+}
+.ch-b p{font-size:13.5px;line-height:1.65;color:var(--ink2);font-weight:500}
+.ch-b p.todo{
+  color:var(--orange);border-left:3px solid var(--orange);
+  padding-left:9px;font-weight:700;
+}
+
+/* ---------- S4 价值 ---------- */
+.bigcmp{display:flex;align-items:baseline;gap:.12em;font-family:var(--mono);margin-top:8px}
+.bigcmp .from{font-size:clamp(26px,3vw,42px);color:#A8A294;text-decoration:line-through;text-decoration-thickness:3px}
+.bigcmp .ar{font-size:26px;color:var(--ink2);margin:0 .3em}
+.bigcmp .to{font-size:clamp(48px,6vw,84px);font-weight:900;color:var(--teal);line-height:1;letter-spacing:-.04em}
+.vals{display:flex;flex-direction:column;gap:12px;margin-top:26px}
+.val{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.7;color:var(--ink2);font-weight:500}
+.val i{
+  width:12px;height:12px;background:var(--yellow);border:2px solid var(--ink);
+  border-radius:3px;flex:none;margin-top:6px;
+}
+.skel{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+
+/* ---------- S5 下一步 ---------- */
+.lims{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
+.lim{
+  background:var(--paper2);border:3px solid var(--ink);border-radius:14px;
+  padding:18px 20px;box-shadow:5px 5px 0 rgba(23,22,26,.11);
+}
+.lim .ln{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:#A8A294;font-weight:700;margin-bottom:9px}
+.lim h4{font-size:17px;font-weight:900;margin-bottom:8px;letter-spacing:-.01em}
+.lim p{font-size:13px;line-height:1.65;color:var(--ink2);font-weight:500}
+.next{
+  margin-top:22px;padding:16px 22px;border:3px dashed var(--orange);border-radius:14px;
+  display:flex;gap:16px;align-items:baseline;flex-wrap:wrap;
+}
+.next .nl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--orange);font-weight:900;flex:none}
+.next p{font-size:15px;font-weight:700;color:var(--ink)}
+.next em{font-style:normal;background:linear-gradient(transparent 60%,var(--yellow) 60%,var(--yellow) 92%,transparent 92%);padding:0 .05em}
+.close{margin-top:26px;font-size:clamp(17px,1.9vw,24px);line-height:1.6;font-weight:900;max-width:40ch}
+.close em{font-style:normal;color:var(--orange)}
+
+/* ---------- 字幕 ---------- */
+.sub{
+  position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(16px);
+  background:var(--ink);color:#fff;padding:10px 24px;border-radius:9px;
+  font-size:14.5px;font-weight:700;letter-spacing:.01em;white-space:nowrap;
+  opacity:0;transition:opacity .3s ease,transform .3s cubic-bezier(.2,.8,.2,1);z-index:15;
+}
+.sub.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="sec" id="secLabel">01 · 开场</div>
+  <div id="stepLabel">01 / 18</div>
+</div>
+<div class="prog"><i id="progBar"></i></div>
+
+<main class="stage">
+
+  <!-- ========== 01 开场 ========== -->
+  <section class="sc" data-steps="3">
+    <div class="badge t stamp" style="--d:0ms;--r:-2deg">CODECUP · AI EVALUATION</div>
+    <h1 style="margin-top:20px">
+      <span class="pop" style="--d:120ms;display:block">给 76 个项目，</span>
+      <span class="pop" style="--d:260ms;display:block">做一个 <span class="ul">AI 评委</span></span>
+    </h1>
+    <div class="pop" data-r="2" style="--d:0ms">
+      <p class="lede">让 AI 先把每个项目读一遍、按评委组定好的标准打分，把评委的时间留给真正值得看的项目。</p>
+    </div>
+    <div class="pop" data-r="3" style="--d:0ms">
+      <div class="metrics">
+        <div class="metric"><b>76</b><span>参赛项目</span></div>
+        <div class="metric"><b class="t">25.3<span class="ar">→</span>6</b><span>小时 · 串行到并行</span></div>
+        <div class="metric"><b class="o">100%</b><span>内网完成</span></div>
+      </div>
+      <div class="agenda">
+        <span class="badge sm">01 它怎么跑</span>
+        <span class="badge sm">02 踩了哪些坑</span>
+        <span class="badge sm">03 价值与复用</span>
+        <span class="badge sm">04 下一步</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 02 流水线 ========== -->
+  <section class="sc" data-steps="6">
+    <h2><span class="badge o sm" style="margin-right:14px">01</span>它是怎么跑的</h2>
+
+    <div class="pipe">
+      <div>
+        <div class="field-head">
+          <span class="badge sm y">GitHub</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--ink2);font-weight:700">
+            <b id="cntDone">0</b> / 76 个项目
+          </span>
+        </div>
+        <div class="field" id="field"></div>
+      </div>
+
+      <div class="pcol">
+        <div class="panel" id="panelA">
+          <div class="ph">
+            <b>team-42 / repo</b>
+            <span class="badge sm t" style="box-shadow:none">沙箱</span>
+          </div>
+          <ul class="tree">
+            <li class="dir">src/</li>
+            <li class="read">index.ts</li>
+            <li class="read">pipeline.ts</li>
+            <li class="dir">src/core/</li>
+            <li class="read">scorer.ts</li>
+            <li class="skip">scorer.test.ts</li>
+            <li class="read">config.ts</li>
+            <li class="dir">docs/</li>
+            <li class="read">README.md</li>
+            <li class="skip">ARCHITECTURE.md</li>
+          </ul>
+          <div class="pf">
+            <span>步骤 <b>118</b>/240</span>
+            <span>读过 <b>27</b>/34</span>
+            <span>规则 已注入</span>
+          </div>
+        </div>
+
+        <div class="panel" id="panelB">
+          <div class="ph"><b>排行榜</b><span class="badge sm o" style="box-shadow:none">实时</span></div>
+          <ul class="rank">
+            <li><span class="r">01</span><span class="t">team-42</span><span class="s">92.4</span></li>
+            <li><span class="r">02</span><span class="t">team-17</span><span class="s">88.1</span></li>
+            <li><span class="r">03</span><span class="t">team-63</span><span class="s">85.6</span></li>
+            <li><span class="r">04</span><span class="t">team-08</span><span class="s">81.3</span></li>
+            <li><span class="r">05</span><span class="t">team-51</span><span class="s">78.9</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 03 挑战 ========== -->
+  <section class="sc" data-steps="3">
+    <h2><span class="badge o sm" style="margin-right:14px">02</span>我踩过的三个坑</h2>
+
+    <div class="chs">
+      <article class="ch pop" data-r="1" style="--d:0ms">
+        <div class="ch-h"><span class="n">01</span><h3>分数会<br>自己变</h3></div>
+        <div class="ch-b">
+          <div><span class="k">现象</span><p>选手推了一个与某维度无关的 commit，那个维度的分数却变了。</p></div>
+          <div><span class="k">根因</span><p>单 Agent 通读，所有维度共用同一个上下文，判断之间互相污染。</p></div>
+          <div><span class="k">应对</span><p class="todo">〔待填：改了设计 / 标注转人工 / 事后定位〕</p></div>
+        </div>
+      </article>
+
+      <article class="ch pop" data-r="2" style="--d:0ms">
+        <div class="ch-h"><span class="n">02</span><h3>理由<br>泛泛</h3></div>
+        <div class="ch-b">
+          <div><span class="k">现象</span><p>能给分数和结论，但说不出「这把锁的粒度不对」这类具体判断。</p></div>
+          <div><span class="k">根因</span><p>一口气扫几十个文件，写理由时上下文里只剩模糊印象。</p></div>
+          <div><span class="k">应对</span><p>承认它是总结而非分析 → 定位为初筛参考，不做终裁。</p></div>
+        </div>
+      </article>
+
+      <article class="ch pop" data-r="3" style="--d:0ms">
+        <div class="ch-h"><span class="n">03</span><h3>规模与<br>并发</h3></div>
+        <div class="ch-b">
+          <div><span class="k">现象</span><p>串行评分需要 25.3 小时，且受公司并发配额限制。</p></div>
+          <div><span class="k">根因</span><p>单条流水线串行推进，沙箱之间互相等待。</p></div>
+          <div><span class="k">应对</span><p>worker 工作池并行调度，76 个项目摊开跑，压到 6 小时。</p></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ========== 04 价值 ========== -->
+  <section class="sc" data-steps="3">
+    <h2><span class="badge o sm" style="margin-right:14px">03</span>省下的不是时间，是注意力</h2>
+
+    <div class="pop" data-r="1" style="--d:0ms">
+      <div class="bigcmp">
+        <span class="from">25.3h</span>
+        <span class="ar">→</span>
+        <span class="to">6h</span>
+      </div>
+    </div>
+
+    <div class="vals">
+      <div class="val pop" data-r="2" style="--d:0ms"><i></i><span>评委从「读 76 个仓库」变成「认真看值得看的那二十个」。</span></div>
+      <div class="val pop" data-r="2" style="--d:90ms"><i></i><span>选手实时看到反馈，比赛过程本身变透明。</span></div>
+      <div class="val pop" data-r="2" style="--d:180ms"><i></i><span>全流程内网完成，代码不出公司。</span></div>
+    </div>
+
+    <div class="pop" data-r="3" style="--d:0ms">
+      <div style="margin-top:22px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:#A8A294;font-weight:700">可复用的骨架 · 只换规则</div>
+      <div class="skel">
+        <span class="badge sm">沙箱隔离</span>
+        <span class="badge sm">规则注入</span>
+        <span class="badge sm">过程留痕</span>
+        <span class="badge sm y">并行调度</span>
+        <span class="badge sm t" style="color:#fff">结果公开</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 05 下一步 ========== -->
+  <section class="sc" data-steps="3">
+    <h2><span class="badge o sm" style="margin-right:14px">04</span>它是一个好的初筛，不是一个好的裁判</h2>
+
+    <div class="lims">
+      <div class="lim pop" data-r="1" style="--d:0ms">
+        <div class="ln">LIMIT 01</div>
+        <h4>不可复现</h4>
+        <p>同样的内容判两次，结果不完全一致。分数只能参考，不能终裁。</p>
+      </div>
+      <div class="lim pop" data-r="1" style="--d:90ms">
+        <div class="ln">LIMIT 02</div>
+        <h4>深度不足</h4>
+        <p>能发现缺失的 README、测试、CI，但判断不了架构合不合理。</p>
+      </div>
+      <div class="lim pop" data-r="1" style="--d:180ms">
+        <div class="ln">LIMIT 03</div>
+        <h4>维度互扰</h4>
+        <p>共用上下文导致维度之间互相影响，无关变更也会改变分数。</p>
+      </div>
+    </div>
+
+    <div class="next pop" data-r="2" style="--d:0ms">
+      <span class="nl">下一步</span>
+      <p>执行方式改造：<em>维度隔离</em> · <em>逐项聚焦</em> · <em>多次采样取共识</em>，评分标准一个字不动。</p>
+    </div>
+
+    <p class="close pop" data-r="3" style="--d:0ms">
+      标准是人定的，AI 只是执行者。<br>
+      难的不是写标准，是把它<em>翻译成可靠的执行方式</em>。
+    </p>
+  </section>
+
+</main>
+
+<div class="sub" id="sub">字幕</div>
+
+<script>
+/* ---------- 76 个方块 ---------- */
+const field = document.getElementById('field');
+for (let i = 0; i < 76; i++){
+  const d = document.createElement('div');
+  d.className = 'blk';
+  field.appendChild(d);
+}
+const blks = [...field.children];
+
+/* ---------- 步骤机 ---------- */
+const scenes = [...document.querySelectorAll('.sc')];
+const perScene = scenes.map(s => Number(s.dataset.steps) || 1);
+const TOTAL = perScene.reduce((a, b) => a + b, 0);
+
+const SEC = ['01 · 开场', '02 · 它怎么跑', '03 · 踩了哪些坑', '04 · 价值与复用', '05 · 下一步'];
+const CAPS = [
+  '76 个项目，全部托管在公司 GitHub 上', '全流程内网完成，代码不出公司', '评委的时间，留给真正值得看的那几个',
+  '76 个项目从 GitHub 拉下来，每个进一个独立沙箱', '沙箱锁死，它出不去也看不到别的队伍', '并行推进：逐个文件读，边读边记',
+  '读过的文件留痕，步数有上限', '全部出分', '结果实时流进公开排行榜',
+  '第一个坑：分数会自己变', '第二个坑：理由泛泛', '第三个坑：规模与并发',
+  '25.3 小时压到 6 小时', '省下的是评委的注意力', '骨架可以复用到其他评审场景',
+  '先说清楚它现在还不能做什么', '执行方式改造，标准一个字不动', '标准是人定的，AI 只是执行者'
+];
+
+let idx = 0;
+
+function locate(i){
+  let s = 0;
+  while (i >= perScene[s]){ i -= perScene[s]; s++; }
+  return [s, i];
+}
+
+function resetPipe(){
+  blks.forEach(b => b.classList.remove('in', 'lock', 'hot', 'done'));
+  document.getElementById('panelA').classList.remove('on');
+  document.getElementById('panelB').classList.remove('on');
+  document.getElementById('cntDone').textContent = '0';
+}
+
+function runPipe(sub){
+  if (sub === 0){
+    resetPipe();
+    blks.forEach((b, i) => setTimeout(() => {
+      b.classList.add('in');
+      document.getElementById('cntDone').textContent = String(i + 1);
+    }, i * 14));
+  }
+  if (sub === 1){
+    blks.forEach((b, i) => setTimeout(() => b.classList.add('lock'), i * 8));
+  }
+  if (sub === 2){
+    blks.forEach((b, i) => setTimeout(() => b.classList.add('hot'), (i % 10) * 45 + Math.floor(i / 10) * 30));
+  }
+  if (sub === 3){
+    document.getElementById('panelA').classList.add('on');
+  }
+  if (sub === 4){
+    document.getElementById('panelA').classList.remove('on');
+    blks.forEach((b, i) => setTimeout(() => b.classList.add('done'), i * 9));
+  }
+  if (sub === 5){
+    document.getElementById('panelB').classList.add('on');
+  }
+}
+
+let lastScene = -1;
+
+function render(){
+  const [si, sub] = locate(idx);
+
+  if (si !== lastScene){
+    const sc0 = scenes[si];
+    sc0.querySelectorAll('.pop,.stamp').forEach(el => el.classList.remove('in'));
+    void sc0.offsetWidth;
+    lastScene = si;
+  }
+
+  scenes.forEach((s, k) => s.classList.toggle('on', k === si));
+  const sc = scenes[si];
+
+  sc.querySelectorAll('.pop,.stamp').forEach(el => {
+    const r = el.dataset.r ? Number(el.dataset.r) : 1;
+    el.classList.toggle('in', r <= sub + 1);
+  });
+
+  if (si === 1) runPipe(sub);
+
+  document.getElementById('secLabel').textContent = SEC[si] || '';
+  document.getElementById('stepLabel').textContent =
+    String(idx + 1).padStart(2, '0') + ' / ' + String(TOTAL).padStart(2, '0');
+  document.getElementById('progBar').style.width = ((idx + 1) / TOTAL * 100) + '%';
+
+  const subEl = document.getElementById('sub');
+  subEl.textContent = (CAPS[idx] || '');
+  subEl.classList.toggle('on', !!CAPS[idx]);
+}
+
+function next(){ if (idx < TOTAL - 1){ idx++; render(); } }
+function prev(){ if (idx > 0){ idx--; render(); } }
+
+document.addEventListener('keydown', e => {
+  if ([' ','ArrowRight','ArrowDown','PageDown','Enter'].includes(e.key)){ e.preventDefault(); next(); }
+  else if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){ e.preventDefault(); prev(); }
+  else if (e.key === 'Home'){ e.preventDefault(); idx = 0; render(); }
+  else if (e.key === 'End'){ e.preventDefault(); idx = TOTAL - 1; render(); }
+  else if (e.key === 'f' || e.key === 'F'){
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('a')) return;
+  e.clientX > innerWidth / 2 ? next() : prev();
+});
+
+render();
+</script>
+</body>
+</html>
